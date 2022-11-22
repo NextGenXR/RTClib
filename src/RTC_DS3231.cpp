@@ -17,6 +17,7 @@
     @return True if Wire can find DS3231 or false otherwise.
 */
 /**************************************************************************/
+#ifndef USE_HAL_DRIVER
 bool RTC_DS3231::begin(TwoWire *wireInstance) {
   if (i2c_dev)
     delete i2c_dev;
@@ -25,6 +26,17 @@ bool RTC_DS3231::begin(TwoWire *wireInstance) {
     return false;
   return true;
 }
+#else
+bool RTC_DS3231::begin(I2C_HandleTypeDef * Handle) {
+  if (i2c_dev)
+    delete i2c_dev;
+  i2c_dev = new Adafruit_I2CDevice(DS3231_ADDRESS, Handle);
+  if (!i2c_dev->begin())
+    return (false);
+  return (true);
+}
+
+#endif
 
 /**************************************************************************/
 /*!
@@ -35,7 +47,7 @@ bool RTC_DS3231::begin(TwoWire *wireInstance) {
 */
 /**************************************************************************/
 bool RTC_DS3231::lostPower(void) {
-  return read_register(DS3231_STATUSREG) >> 7;
+  return (read_register(DS3231_STATUSREG) >> 7);
 }
 
 /**************************************************************************/
@@ -71,9 +83,9 @@ DateTime RTC_DS3231::now() {
   buffer[0] = 0;
   i2c_dev->write_then_read(buffer, 1, buffer, 7);
 
-  return DateTime(bcd2bin(buffer[6]) + 2000U, bcd2bin(buffer[5] & 0x7F),
+  return (DateTime(bcd2bin(buffer[6]) + 2000U, bcd2bin(buffer[5] & 0x7F),
                   bcd2bin(buffer[4]), bcd2bin(buffer[2]), bcd2bin(buffer[1]),
-                  bcd2bin(buffer[0] & 0x7F));
+                  bcd2bin(buffer[0] & 0x7F)));
 }
 
 /**************************************************************************/
@@ -87,7 +99,7 @@ Ds3231SqwPinMode RTC_DS3231::readSqwPinMode() {
   mode = read_register(DS3231_CONTROL) & 0x1C;
   if (mode & 0x04)
     mode = DS3231_OFF;
-  return static_cast<Ds3231SqwPinMode>(mode);
+  return (static_cast<Ds3231SqwPinMode>(mode));
 }
 
 /**************************************************************************/
@@ -114,7 +126,7 @@ void RTC_DS3231::writeSqwPinMode(Ds3231SqwPinMode mode) {
 float RTC_DS3231::getTemperature() {
   uint8_t buffer[2] = {DS3231_TEMPERATUREREG, 0};
   i2c_dev->write_then_read(buffer, 1, buffer, 2);
-  return (float)buffer[0] + (buffer[1] >> 6) * 0.25f;
+  return ((float)buffer[0] + (buffer[1] >> 6) * 0.25f);
 }
 
 /**************************************************************************/
@@ -128,7 +140,7 @@ float RTC_DS3231::getTemperature() {
 bool RTC_DS3231::setAlarm1(const DateTime &dt, Ds3231Alarm1Mode alarm_mode) {
   uint8_t ctrl = read_register(DS3231_CONTROL);
   if (!(ctrl & 0x04)) {
-    return false;
+    return (false);
   }
 
   uint8_t A1M1 = (alarm_mode & 0x01) << 7; // Seconds bit 7.
@@ -147,7 +159,7 @@ bool RTC_DS3231::setAlarm1(const DateTime &dt, Ds3231Alarm1Mode alarm_mode) {
 
   write_register(DS3231_CONTROL, ctrl | 0x01); // AI1E
 
-  return true;
+  return (true);
 }
 
 /**************************************************************************/
@@ -161,7 +173,7 @@ bool RTC_DS3231::setAlarm1(const DateTime &dt, Ds3231Alarm1Mode alarm_mode) {
 bool RTC_DS3231::setAlarm2(const DateTime &dt, Ds3231Alarm2Mode alarm_mode) {
   uint8_t ctrl = read_register(DS3231_CONTROL);
   if (!(ctrl & 0x04)) {
-    return false;
+    return (false);
   }
 
   uint8_t A2M2 = (alarm_mode & 0x01) << 7; // Minutes bit 7.
@@ -178,140 +190,7 @@ bool RTC_DS3231::setAlarm2(const DateTime &dt, Ds3231Alarm2Mode alarm_mode) {
 
   write_register(DS3231_CONTROL, ctrl | 0x02); // AI2E
 
-  return true;
-}
-
-/**************************************************************************/
-/*!
-    @brief  Get the date/time value of Alarm1
-    @return DateTime object with the Alarm1 data set in the
-            day, hour, minutes, and seconds fields
-*/
-/**************************************************************************/
-DateTime RTC_DS3231::getAlarm1() {
-  uint8_t buffer[5] = {DS3231_ALARM1, 0, 0, 0, 0};
-  i2c_dev->write_then_read(buffer, 1, buffer, 5);
-
-  uint8_t seconds = bcd2bin(buffer[0] & 0x7F);
-  uint8_t minutes = bcd2bin(buffer[1] & 0x7F);
-  // Fetching the hour assumes 24 hour time (never 12)
-  // because this library exclusively stores the time
-  // in 24 hour format. Note that the DS3231 supports
-  // 12 hour storage, and sets bits to indicate the type
-  // that is stored.
-  uint8_t hour = bcd2bin(buffer[2] & 0x3F);
-
-  // Determine if the alarm is set to fire based on the
-  // day of the week, or an explicit date match.
-  bool isDayOfWeek = (buffer[3] & 0x40) >> 6;
-  uint8_t day;
-  if (isDayOfWeek) {
-    // Alarm set to match on day of the week
-    day = bcd2bin(buffer[3] & 0x0F);
-  } else {
-    // Alarm set to match on day of the month
-    day = bcd2bin(buffer[3] & 0x3F);
-  }
-
-  // On the first week of May 2000, the day-of-the-week number
-  // matches the date number.
-  return DateTime(2000, 5, day, hour, minutes, seconds);
-}
-
-/**************************************************************************/
-/*!
-    @brief  Get the date/time value of Alarm2
-    @return DateTime object with the Alarm2 data set in the
-            day, hour, and minutes fields
-*/
-/**************************************************************************/
-DateTime RTC_DS3231::getAlarm2() {
-  uint8_t buffer[4] = {DS3231_ALARM2, 0, 0, 0};
-  i2c_dev->write_then_read(buffer, 1, buffer, 4);
-
-  uint8_t minutes = bcd2bin(buffer[0] & 0x7F);
-  // Fetching the hour assumes 24 hour time (never 12)
-  // because this library exclusively stores the time
-  // in 24 hour format. Note that the DS3231 supports
-  // 12 hour storage, and sets bits to indicate the type
-  // that is stored.
-  uint8_t hour = bcd2bin(buffer[1] & 0x3F);
-
-  // Determine if the alarm is set to fire based on the
-  // day of the week, or an explicit date match.
-  bool isDayOfWeek = (buffer[2] & 0x40) >> 6;
-  uint8_t day;
-  if (isDayOfWeek) {
-    // Alarm set to match on day of the week
-    day = bcd2bin(buffer[2] & 0x0F);
-  } else {
-    // Alarm set to match on day of the month
-    day = bcd2bin(buffer[2] & 0x3F);
-  }
-
-  // On the first week of May 2000, the day-of-the-week number
-  // matches the date number.
-  return DateTime(2000, 5, day, hour, minutes, 0);
-}
-
-/**************************************************************************/
-/*!
-    @brief  Get the mode for Alarm1
-    @return Ds3231Alarm1Mode enum value for the current Alarm1 mode
-*/
-/**************************************************************************/
-Ds3231Alarm1Mode RTC_DS3231::getAlarm1Mode() {
-  uint8_t buffer[5] = {DS3231_ALARM1, 0, 0, 0, 0};
-  i2c_dev->write_then_read(buffer, 1, buffer, 5);
-
-  uint8_t alarm_mode = (buffer[0] & 0x80) >> 7    // A1M1 - Seconds bit
-                       | (buffer[1] & 0x80) >> 6  // A1M2 - Minutes bit
-                       | (buffer[2] & 0x80) >> 5  // A1M3 - Hour bit
-                       | (buffer[3] & 0x80) >> 4  // A1M4 - Day/Date bit
-                       | (buffer[3] & 0x40) >> 2; // DY_DT
-
-  // Determine which mode the fetched alarm bits map to
-  switch (alarm_mode) {
-  case DS3231_A1_PerSecond:
-  case DS3231_A1_Second:
-  case DS3231_A1_Minute:
-  case DS3231_A1_Hour:
-  case DS3231_A1_Date:
-  case DS3231_A1_Day:
-    return (Ds3231Alarm1Mode)alarm_mode;
-  default:
-    // Default if the alarm mode cannot be read
-    return DS3231_A1_Date;
-  }
-}
-
-/**************************************************************************/
-/*!
-    @brief  Get the mode for Alarm2
-    @return Ds3231Alarm2Mode enum value for the current Alarm2 mode
-*/
-/**************************************************************************/
-Ds3231Alarm2Mode RTC_DS3231::getAlarm2Mode() {
-  uint8_t buffer[4] = {DS3231_ALARM2, 0, 0, 0};
-  i2c_dev->write_then_read(buffer, 1, buffer, 4);
-
-  uint8_t alarm_mode = (buffer[0] & 0x80) >> 7    // A2M2 - Minutes bit
-                       | (buffer[1] & 0x80) >> 6  // A2M3 - Hour bit
-                       | (buffer[2] & 0x80) >> 5  // A2M4 - Day/Date bit
-                       | (buffer[2] & 0x40) >> 3; // DY_DT
-
-  // Determine which mode the fetched alarm bits map to
-  switch (alarm_mode) {
-  case DS3231_A2_PerMinute:
-  case DS3231_A2_Minute:
-  case DS3231_A2_Hour:
-  case DS3231_A2_Date:
-  case DS3231_A2_Day:
-    return (Ds3231Alarm2Mode)alarm_mode;
-  default:
-    // Default if the alarm mode cannot be read
-    return DS3231_A2_Date;
-  }
+  return (true);
 }
 
 /**************************************************************************/
@@ -346,7 +225,7 @@ void RTC_DS3231::clearAlarm(uint8_t alarm_num) {
 */
 /**************************************************************************/
 bool RTC_DS3231::alarmFired(uint8_t alarm_num) {
-  return (read_register(DS3231_STATUSREG) >> (alarm_num - 1)) & 0x1;
+  return ((read_register(DS3231_STATUSREG) >> (alarm_num - 1)) & 0x1);
 }
 
 /**************************************************************************/
@@ -380,5 +259,5 @@ void RTC_DS3231::disable32K(void) {
 */
 /**************************************************************************/
 bool RTC_DS3231::isEnabled32K(void) {
-  return (read_register(DS3231_STATUSREG) >> 0x03) & 0x01;
+  return ((read_register(DS3231_STATUSREG) >> 0x03) & 0x01);
 }

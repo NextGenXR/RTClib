@@ -1,3 +1,9 @@
+#ifdef USE_HAL_DRIVER
+#include <stm32yyxx_hal_conf.h>
+#include <stm32yyxx_hal_def.h>
+#include <stm32yyxx_hal_i2c.h>
+#endif
+
 #include "RTClib.h"
 
 #define DS1307_ADDRESS 0x68 ///< I2C address for DS1307
@@ -11,6 +17,8 @@
     @return True if Wire can find DS1307 or false otherwise.
 */
 /**************************************************************************/
+#ifndef USE_HAL_DRIVER
+
 bool RTC_DS1307::begin(TwoWire *wireInstance) {
   if (i2c_dev)
     delete i2c_dev;
@@ -19,6 +27,18 @@ bool RTC_DS1307::begin(TwoWire *wireInstance) {
     return false;
   return true;
 }
+#else
+
+bool RTC_DS1307::begin(I2C_HandleTypeDef * Handle) {
+  if (i2c_dev)
+    delete i2c_dev;
+  i2c_dev = new Adafruit_I2CDevice(DS1307_ADDRESS, Handle);
+  if (!i2c_dev->begin())
+    return (false);
+  return (true);
+}
+
+#endif
 
 /**************************************************************************/
 /*!
@@ -57,9 +77,9 @@ DateTime RTC_DS1307::now() {
   buffer[0] = 0;
   i2c_dev->write_then_read(buffer, 1, buffer, 7);
 
-  return DateTime(bcd2bin(buffer[6]) + 2000U, bcd2bin(buffer[5]),
+  return (DateTime(bcd2bin(buffer[6]) + 2000U, bcd2bin(buffer[5]),
                   bcd2bin(buffer[4]), bcd2bin(buffer[2]), bcd2bin(buffer[1]),
-                  bcd2bin(buffer[0] & 0x7F));
+                  bcd2bin(buffer[0] & 0x7F)));
 }
 
 /**************************************************************************/
@@ -69,7 +89,7 @@ DateTime RTC_DS1307::now() {
 */
 /**************************************************************************/
 Ds1307SqwPinMode RTC_DS1307::readSqwPinMode() {
-  return static_cast<Ds1307SqwPinMode>(read_register(DS1307_CONTROL) & 0x93);
+  return (static_cast<Ds1307SqwPinMode>(read_register(DS1307_CONTROL) & 0x93));
 }
 
 /**************************************************************************/
@@ -104,7 +124,7 @@ void RTC_DS1307::readnvram(uint8_t *buf, uint8_t size, uint8_t address) {
     @param size Number of bytes in buf to write to NVRAM
 */
 /**************************************************************************/
-void RTC_DS1307::writenvram(uint8_t address, const uint8_t *buf, uint8_t size) {
+void RTC_DS1307::writenvram(uint8_t address, uint8_t *buf, uint8_t size) {
   uint8_t addrByte = DS1307_NVRAM + address;
   i2c_dev->write(buf, size, true, &addrByte, 1);
 }
@@ -119,7 +139,7 @@ void RTC_DS1307::writenvram(uint8_t address, const uint8_t *buf, uint8_t size) {
 uint8_t RTC_DS1307::readnvram(uint8_t address) {
   uint8_t data;
   readnvram(&data, 1, address);
-  return data;
+  return (data);
 }
 
 /**************************************************************************/
