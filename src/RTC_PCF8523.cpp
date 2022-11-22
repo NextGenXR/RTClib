@@ -17,14 +17,26 @@
     @return True if Wire can find PCF8523 or false otherwise.
 */
 /**************************************************************************/
-bool RTC_PCF8523::begin(TwoWire *wireInstance) {
+#ifndef USE_HAL_DRIVER
+boolean RTC_PCF8523::begin(TwoWire *wireInstance) {
   if (i2c_dev)
     delete i2c_dev;
   i2c_dev = new Adafruit_I2CDevice(PCF8523_ADDRESS, wireInstance);
   if (!i2c_dev->begin())
     return false;
-  return true;
+  return (true);
 }
+#else
+bool RTC_PCF8523::begin(I2C_HandleTypeDef * Handle) {
+  if (i2c_dev)
+    delete i2c_dev;
+  i2c_dev = new Adafruit_I2CDevice(PCF8523_ADDRESS, Handle);
+  if (!i2c_dev->begin())
+    return (false);
+  return (true);
+}
+
+#endif
 
 /**************************************************************************/
 /*!
@@ -38,7 +50,7 @@ bool RTC_PCF8523::begin(TwoWire *wireInstance) {
 */
 /**************************************************************************/
 bool RTC_PCF8523::lostPower(void) {
-  return read_register(PCF8523_STATUSREG) >> 7;
+  return (read_register(PCF8523_STATUSREG) >> 7);
 }
 
 /**************************************************************************/
@@ -49,7 +61,7 @@ bool RTC_PCF8523::lostPower(void) {
 */
 /**************************************************************************/
 bool RTC_PCF8523::initialized(void) {
-  return (read_register(PCF8523_CONTROL_3) & 0xE0) != 0xE0;
+  return ((read_register(PCF8523_CONTROL_3) & 0xE0) != 0xE0);
 }
 
 /**************************************************************************/
@@ -58,7 +70,7 @@ bool RTC_PCF8523::initialized(void) {
     @param dt DateTime to set
 */
 /**************************************************************************/
-void RTC_PCF8523::adjust(const DateTime &dt) {
+bool RTC_PCF8523::adjust(const DateTime &dt) {
   uint8_t buffer[8] = {3, // start at location 3
                        bin2bcd(dt.second()),
                        bin2bcd(dt.minute()),
@@ -67,10 +79,12 @@ void RTC_PCF8523::adjust(const DateTime &dt) {
                        bin2bcd(0), // skip weekdays
                        bin2bcd(dt.month()),
                        bin2bcd(dt.year() - 2000U)};
-  i2c_dev->write(buffer, 8);
+  auto result1 = i2c_dev->write(buffer, 8);
 
   // set to battery switchover mode
-  write_register(PCF8523_CONTROL_3, 0x00);
+  auto result2 = write_register(PCF8523_CONTROL_3, 0x00);
+
+  return (result1 == true && result2 == true);
 }
 
 /**************************************************************************/
@@ -80,13 +94,13 @@ void RTC_PCF8523::adjust(const DateTime &dt) {
 */
 /**************************************************************************/
 DateTime RTC_PCF8523::now() {
-  uint8_t buffer[7];
+  uint8_t buffer[7] = {0,0,0,0,0,0,0};
   buffer[0] = 3;
   i2c_dev->write_then_read(buffer, 1, buffer, 7);
 
-  return DateTime(bcd2bin(buffer[6]) + 2000U, bcd2bin(buffer[5]),
+  return (DateTime(bcd2bin(buffer[6]) + 2000U, bcd2bin(buffer[5]),
                   bcd2bin(buffer[3]), bcd2bin(buffer[2]), bcd2bin(buffer[1]),
-                  bcd2bin(buffer[0] & 0x7F));
+                  bcd2bin(buffer[0] & 0x7F)));
 }
 
 /**************************************************************************/
@@ -116,8 +130,8 @@ void RTC_PCF8523::stop(void) {
     @return 1 if the RTC is running, 0 if not
 */
 /**************************************************************************/
-uint8_t RTC_PCF8523::isrunning() {
-  return !((read_register(PCF8523_CONTROL_1) >> 5) & 1);
+bool RTC_PCF8523::isrunning() {
+  return ( ((read_register(PCF8523_CONTROL_1) >> 5) & 1) == 1);
 }
 
 /**************************************************************************/
@@ -130,7 +144,7 @@ Pcf8523SqwPinMode RTC_PCF8523::readSqwPinMode() {
   int mode = read_register(PCF8523_CLKOUTCONTROL);
   mode >>= 3;
   mode &= 0x7;
-  return static_cast<Pcf8523SqwPinMode>(mode);
+  return (static_cast<Pcf8523SqwPinMode>(mode));
 }
 
 /**************************************************************************/

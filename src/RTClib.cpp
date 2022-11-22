@@ -43,7 +43,11 @@
 */
 /**************************************************************************/
 
+#include <cstdio>
+#include <cstdint>
+#include <cstdbool>
 #include "RTClib.h"
+
 
 #ifdef __AVR__
 #include <avr/pgmspace.h>
@@ -56,6 +60,28 @@
 #define pgm_read_byte(addr) (*(const unsigned char *)(addr))
 #endif
 
+
+#ifdef USE_HAL_DRIVER
+#include <stm32yyxx_hal_conf.h>
+#include <stm32yyxx_hal_def.h>
+#include <stm32yyxx_hal_rtc.h>
+
+#include <rtc.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+	extern I2C_HandleTypeDef hi2c1;
+	extern I2C_HandleTypeDef hi2c2;
+	extern I2C_HandleTypeDef hi2c4;
+#ifdef __cplusplus
+}
+#endif
+
+
+#endif	// USE_HAL_DRIVER
+
+
 /**************************************************************************/
 /*!
     @brief Write value to register.
@@ -63,9 +89,9 @@
     @param val value to write
 */
 /**************************************************************************/
-void RTC_I2C::write_register(uint8_t reg, uint8_t val) {
+bool RTC_I2C::write_register(uint8_t reg, uint8_t val) {
   uint8_t buffer[2] = {reg, val};
-  i2c_dev->write(buffer, 2);
+  return (i2c_dev->write(buffer, 2));
 }
 
 /**************************************************************************/
@@ -79,7 +105,7 @@ uint8_t RTC_I2C::read_register(uint8_t reg) {
   uint8_t buffer[1];
   i2c_dev->write(&reg, 1);
   i2c_dev->read(buffer, 1);
-  return buffer[0];
+  return (buffer[0]);
 }
 
 /**************************************************************************/
@@ -112,7 +138,7 @@ static uint16_t date2days(uint16_t y, uint8_t m, uint8_t d) {
     days += pgm_read_byte(daysInMonth + i - 1);
   if (m > 2 && y % 4 == 0)
     ++days;
-  return days + 365 * y + (y + 3) / 4 - 1;
+  return (days + 365 * y + (y + 3) / 4 - 1);
 }
 
 /**************************************************************************/
@@ -127,7 +153,7 @@ static uint16_t date2days(uint16_t y, uint8_t m, uint8_t d) {
 */
 /**************************************************************************/
 static uint32_t time2ulong(uint16_t days, uint8_t h, uint8_t m, uint8_t s) {
-  return ((days * 24UL + h) * 60 + m) * 60 + s;
+  return (((days * 24UL + h) * 60 + m) * 60 + s);
 }
 
 /**************************************************************************/
@@ -232,7 +258,7 @@ static uint8_t conv2d(const char *p) {
   uint8_t v = 0;
   if ('0' <= *p && *p <= '9')
     v = *p - '0';
-  return 10 * v + *++p - '0';
+  return (10 * v + *++p - '0');
 }
 
 /**************************************************************************/
@@ -282,6 +308,8 @@ DateTime::DateTime(const char *date, const char *time) {
   case 'D':
     m = 12;
     break;
+  default:
+	  break;
   }
   d = conv2d(date + 4);
   hh = conv2d(time);
@@ -335,6 +363,8 @@ DateTime::DateTime(const __FlashStringHelper *date,
   case 'D':
     m = 12;
     break;
+  default:
+	  break;
   }
   d = conv2d(buff + 4);
   memcpy_P(buff, time, 8);
@@ -368,7 +398,10 @@ DateTime::DateTime(const __FlashStringHelper *date,
 /**************************************************************************/
 DateTime::DateTime(const char *iso8601dateTime) {
   char ref[] = "2000-01-01T00:00:00";
-  memcpy(ref, iso8601dateTime, min(strlen(ref), strlen(iso8601dateTime)));
+
+  // TODO:
+  // memcpy(ref, iso8601dateTime, min(strlen(ref), strlen(iso8601dateTime)));
+
   yOff = conv2d(ref + 2);
   m = conv2d(ref + 5);
   d = conv2d(ref + 8);
@@ -385,10 +418,10 @@ DateTime::DateTime(const char *iso8601dateTime) {
 /**************************************************************************/
 bool DateTime::isValid() const {
   if (yOff >= 100)
-    return false;
+    return (false);
   DateTime other(unixtime());
-  return yOff == other.yOff && m == other.m && d == other.d && hh == other.hh &&
-         mm == other.mm && ss == other.ss;
+  return (yOff == other.yOff && m == other.m && d == other.d && hh == other.hh &&
+         mm == other.mm && ss == other.ss);
 }
 
 /**************************************************************************/
@@ -438,10 +471,11 @@ bool DateTime::isValid() const {
 */
 /**************************************************************************/
 
-char *DateTime::toString(char *buffer) const {
+char *DateTime::toString(char *buffer) {
   uint8_t apTag =
       (strstr(buffer, "ap") != nullptr) || (strstr(buffer, "AP") != nullptr);
-  uint8_t hourReformatted = 0, isPM = false;
+  uint8_t hourReformatted = 0;
+  uint8_t isPM = false;
   if (apTag) {     // 12 Hour Mode
     if (hh == 0) { // midnight
       isPM = false;
@@ -525,7 +559,7 @@ char *DateTime::toString(char *buffer) const {
       }
     }
   }
-  return buffer;
+  return (buffer);
 }
 
 /**************************************************************************/
@@ -536,11 +570,11 @@ char *DateTime::toString(char *buffer) const {
 /**************************************************************************/
 uint8_t DateTime::twelveHour() const {
   if (hh == 0 || hh == 12) { // midnight or noon
-    return 12;
+    return (12);
   } else if (hh > 12) { // 1 o'clock or later
-    return hh - 12;
+    return (hh - 12);
   } else { // morning
-    return hh;
+    return (hh);
   }
 }
 
@@ -552,7 +586,7 @@ uint8_t DateTime::twelveHour() const {
 /**************************************************************************/
 uint8_t DateTime::dayOfTheWeek() const {
   uint16_t day = date2days(yOff, m, d);
-  return (day + 6) % 7; // Jan 1, 2000 is a Saturday, i.e. returns 6
+  return ((day + 6) % 7); // Jan 1, 2000 is a Saturday, i.e. returns 6
 }
 
 /**************************************************************************/
@@ -571,7 +605,7 @@ uint32_t DateTime::unixtime(void) const {
   t = time2ulong(days, hh, mm, ss);
   t += SECONDS_FROM_1970_TO_2000; // seconds from 1970 to 2000
 
-  return t;
+  return (t);
 }
 
 /**************************************************************************/
@@ -591,7 +625,7 @@ uint32_t DateTime::secondstime(void) const {
   uint32_t t;
   uint16_t days = date2days(yOff, m, d);
   t = time2ulong(days, hh, mm, ss);
-  return t;
+  return (t);
 }
 
 /**************************************************************************/
@@ -601,8 +635,8 @@ uint32_t DateTime::secondstime(void) const {
     @return New DateTime object with span added to it.
 */
 /**************************************************************************/
-DateTime DateTime::operator+(const TimeSpan &span) const {
-  return DateTime(unixtime() + span.totalseconds());
+DateTime DateTime::operator+(const TimeSpan &span) {
+  return (DateTime(unixtime() + span.totalseconds()));
 }
 
 /**************************************************************************/
@@ -612,8 +646,8 @@ DateTime DateTime::operator+(const TimeSpan &span) const {
     @return New DateTime object with span subtracted from it.
 */
 /**************************************************************************/
-DateTime DateTime::operator-(const TimeSpan &span) const {
-  return DateTime(unixtime() - span.totalseconds());
+DateTime DateTime::operator-(const TimeSpan &span) {
+  return (DateTime(unixtime() - span.totalseconds()));
 }
 
 /**************************************************************************/
@@ -628,8 +662,8 @@ DateTime DateTime::operator-(const TimeSpan &span) const {
     @return TimeSpan of the difference between DateTimes.
 */
 /**************************************************************************/
-TimeSpan DateTime::operator-(const DateTime &right) const {
-  return TimeSpan(unixtime() - right.unixtime());
+TimeSpan DateTime::operator-(const DateTime &right) {
+  return (TimeSpan(unixtime() - right.unixtime()));
 }
 
 /**************************************************************************/
@@ -689,7 +723,7 @@ bool DateTime::operator==(const DateTime &right) const {
     @return Timestamp string, e.g. "2020-04-16T18:34:56".
 */
 /**************************************************************************/
-String DateTime::timestamp(timestampOpt opt) const {
+String DateTime::timestamp(timestampOpt opt) {
   char buffer[25]; // large enough for any DateTime, including invalid ones
 
   // Generate timestamp according to opt
@@ -707,7 +741,7 @@ String DateTime::timestamp(timestampOpt opt) const {
     sprintf(buffer, "%u-%02d-%02dT%02d:%02d:%02d", 2000U + yOff, m, d, hh, mm,
             ss);
   }
-  return String(buffer);
+  return (String(buffer));
 }
 
 /**************************************************************************/
@@ -748,8 +782,8 @@ TimeSpan::TimeSpan(const TimeSpan &copy) : _seconds(copy._seconds) {}
     @return New TimeSpan object, sum of left and right
 */
 /**************************************************************************/
-TimeSpan TimeSpan::operator+(const TimeSpan &right) const {
-  return TimeSpan(_seconds + right._seconds);
+TimeSpan TimeSpan::operator+(const TimeSpan &right) {
+  return (TimeSpan(_seconds + right._seconds));
 }
 
 /**************************************************************************/
@@ -759,6 +793,6 @@ TimeSpan TimeSpan::operator+(const TimeSpan &right) const {
     @return New TimeSpan object, right subtracted from left
 */
 /**************************************************************************/
-TimeSpan TimeSpan::operator-(const TimeSpan &right) const {
-  return TimeSpan(_seconds - right._seconds);
+TimeSpan TimeSpan::operator-(const TimeSpan &right) {
+  return (TimeSpan(_seconds - right._seconds));
 }

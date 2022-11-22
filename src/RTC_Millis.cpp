@@ -1,5 +1,14 @@
 #include "RTClib.h"
 
+#ifdef USE_HAL_DRIVER
+uint32_t RTC_Millis::millis(void)
+{
+	// TODO: Determine Millis
+
+	return (0);
+}
+#endif
+
 /**************************************************************************/
 /*!
     @brief  Set the current date/time of the RTC_Millis clock.
@@ -23,5 +32,5 @@ DateTime RTC_Millis::now() {
   uint32_t elapsedSeconds = (millis() - lastMillis) / 1000;
   lastMillis += elapsedSeconds * 1000;
   lastUnix += elapsedSeconds;
-  return lastUnix;
+  return (lastUnix);
 }

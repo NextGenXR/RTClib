@@ -14,6 +14,7 @@
     @return True if Wire can find PCF8563 or false otherwise.
 */
 /**************************************************************************/
+#ifndef USE_HAL_DRIVER
 bool RTC_PCF8563::begin(TwoWire *wireInstance) {
   if (i2c_dev)
     delete i2c_dev;
@@ -22,6 +23,18 @@ bool RTC_PCF8563::begin(TwoWire *wireInstance) {
     return false;
   return true;
 }
+#else
+
+bool RTC_PCF8563::begin(I2C_HandleTypeDef * Handle) {
+  if (i2c_dev)
+    delete i2c_dev;
+  i2c_dev = new Adafruit_I2CDevice(PCF8563_ADDRESS, Handle);
+  if (!i2c_dev->begin())
+    return (false);
+  return (true);
+}
+
+#endif
 
 /**************************************************************************/
 /*!
@@ -35,7 +48,7 @@ bool RTC_PCF8563::begin(TwoWire *wireInstance) {
 */
 /**************************************************************************/
 bool RTC_PCF8563::lostPower(void) {
-  return read_register(PCF8563_VL_SECONDS) >> 7;
+  return (read_register(PCF8563_VL_SECONDS) >> 7);
 }
 
 /**************************************************************************/
@@ -44,13 +57,13 @@ bool RTC_PCF8563::lostPower(void) {
     @param dt DateTime to set
 */
 /**************************************************************************/
-void RTC_PCF8563::adjust(const DateTime &dt) {
+bool RTC_PCF8563::adjust(const DateTime &dt) {
   uint8_t buffer[8] = {PCF8563_VL_SECONDS, // start at location 2, VL_SECONDS
                        bin2bcd(dt.second()), bin2bcd(dt.minute()),
                        bin2bcd(dt.hour()),   bin2bcd(dt.day()),
                        bin2bcd(0), // skip weekdays
                        bin2bcd(dt.month()),  bin2bcd(dt.year() - 2000U)};
-  i2c_dev->write(buffer, 8);
+  return(i2c_dev->write(buffer, 8));
 }
 
 /**************************************************************************/
@@ -64,9 +77,9 @@ DateTime RTC_PCF8563::now() {
   buffer[0] = PCF8563_VL_SECONDS; // start at location 2, VL_SECONDS
   i2c_dev->write_then_read(buffer, 1, buffer, 7);
 
-  return DateTime(bcd2bin(buffer[6]) + 2000U, bcd2bin(buffer[5] & 0x1F),
+  return (DateTime(bcd2bin(buffer[6]) + 2000U, bcd2bin(buffer[5] & 0x1F),
                   bcd2bin(buffer[3] & 0x3F), bcd2bin(buffer[2] & 0x3F),
-                  bcd2bin(buffer[1] & 0x7F), bcd2bin(buffer[0] & 0x7F));
+                  bcd2bin(buffer[1] & 0x7F), bcd2bin(buffer[0] & 0x7F)));
 }
 
 /**************************************************************************/
@@ -98,7 +111,7 @@ void RTC_PCF8563::stop(void) {
 */
 /**************************************************************************/
 uint8_t RTC_PCF8563::isrunning() {
-  return !((read_register(PCF8563_CONTROL_1) >> 5) & 1);
+  return (!((read_register(PCF8563_CONTROL_1) >> 5) & 1));
 }
 
 /**************************************************************************/
@@ -109,7 +122,7 @@ uint8_t RTC_PCF8563::isrunning() {
 /**************************************************************************/
 Pcf8563SqwPinMode RTC_PCF8563::readSqwPinMode() {
   int mode = read_register(PCF8563_CLKOUTCONTROL);
-  return static_cast<Pcf8563SqwPinMode>(mode & PCF8563_CLKOUT_MASK);
+  return (static_cast<Pcf8563SqwPinMode>(mode & PCF8563_CLKOUT_MASK));
 }
 
 /**************************************************************************/

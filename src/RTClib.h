@@ -22,8 +22,24 @@
 #ifndef _RTCLIB_H_
 #define _RTCLIB_H_
 
+#if __has_include(<main.h>)
+#include <main.h>
+#endif
+
 #include <Adafruit_I2CDevice.h>
+#include <cstdint>
+#include <cstdbool>
+
+#ifdef USE_HAL_DRIVER
+#include <stm32yyxx_hal_conf.h>
+#include <stm32yyxx_hal_def.h>
+#include <stm32yyxx_hal_i2c.h>
+#include <stm32yyxx_hal_rtc.h>
+
+#endif
+
 #include <Arduino.h>
+#include <WString.h>
 
 class TimeSpan;
 
@@ -31,6 +47,26 @@ class TimeSpan;
 #define SECONDS_PER_DAY 86400L ///< 60 * 60 * 24
 #define SECONDS_FROM_1970_TO_2000                                              \
   946684800 ///< Unixtime for 2000-01-01 00:00:00, useful for initialization
+
+/** Alarm modes for STM32 alarm 1 */
+enum STM32Alarm1Mode {
+  STM32_PerSecond = 0x0F, /**< Alarm once per second */
+  STM32_Second = 0x0E,    /**< Alarm when seconds match */
+  STM32_Minute = 0x0C,    /**< Alarm when minutes and seconds match */
+  STM32_Hour = 0x08,      /**< Alarm when hours, minutes
+                                   and seconds match */
+  STM32_Date = 0x00,      /**< Alarm when date (day of month), hours,
+                                   minutes and seconds match */
+  STM32_Day = 0x10        /**< Alarm when day (day of week), hours,
+                                   minutes and seconds match */
+};
+
+enum RTC_Type {
+	DS1307,
+	DS3231,
+	PCF8523,
+	PCF8563,
+};
 
 /** DS1307 SQW pin mode settings */
 enum Ds1307SqwPinMode {
@@ -150,45 +186,45 @@ public:
   DateTime(const __FlashStringHelper *date, const __FlashStringHelper *time);
   DateTime(const char *iso8601date);
   bool isValid() const;
-  char *toString(char *buffer) const;
+  char *toString(char *buffer);
 
   /*!
       @brief  Return the year.
       @return Year (range: 2000--2099).
   */
-  uint16_t year() const { return 2000U + yOff; }
+  uint16_t year() const { return (2000U + yOff); }
   /*!
       @brief  Return the month.
       @return Month number (1--12).
   */
-  uint8_t month() const { return m; }
+  uint8_t month() const { return (m); }
   /*!
       @brief  Return the day of the month.
       @return Day of the month (1--31).
   */
-  uint8_t day() const { return d; }
+  uint8_t day() const { return (d); }
   /*!
       @brief  Return the hour
       @return Hour (0--23).
   */
-  uint8_t hour() const { return hh; }
+  uint8_t hour() const { return (hh); }
 
   uint8_t twelveHour() const;
   /*!
       @brief  Return whether the time is PM.
       @return 0 if the time is AM, 1 if it's PM.
   */
-  uint8_t isPM() const { return hh >= 12; }
+  uint8_t isPM() const { return (hh >= 12); }
   /*!
       @brief  Return the minute.
       @return Minute (0--59).
   */
-  uint8_t minute() const { return mm; }
+  uint8_t minute() const { return (mm); }
   /*!
       @brief  Return the second.
       @return Second (0--59).
   */
-  uint8_t second() const { return ss; }
+  uint8_t second() const { return (ss); }
 
   uint8_t dayOfTheWeek() const;
 
@@ -207,11 +243,12 @@ public:
     TIMESTAMP_TIME, //!< `hh:mm:ss`
     TIMESTAMP_DATE  //!< `YYYY-MM-DD`
   };
-  String timestamp(timestampOpt opt = TIMESTAMP_FULL) const;
 
-  DateTime operator+(const TimeSpan &span) const;
-  DateTime operator-(const TimeSpan &span) const;
-  TimeSpan operator-(const DateTime &right) const;
+  String timestamp(timestampOpt opt = TIMESTAMP_FULL);
+
+  DateTime operator+(const TimeSpan &span);
+  DateTime operator-(const TimeSpan &span);
+  TimeSpan operator-(const DateTime &right);
   bool operator<(const DateTime &right) const;
 
   /*!
@@ -223,7 +260,7 @@ public:
       @return True if the left DateTime is later than the right one,
         false otherwise
   */
-  bool operator>(const DateTime &right) const { return right < *this; }
+  bool operator>(const DateTime &right) const { return (right < *this); }
 
   /*!
       @brief  Test if one DateTime is less (earlier) than or equal to another
@@ -234,7 +271,7 @@ public:
       @return True if the left DateTime is earlier than or equal to the
         right one, false otherwise
   */
-  bool operator<=(const DateTime &right) const { return !(*this > right); }
+  bool operator<=(const DateTime &right) const { return (!(*this > right)); }
 
   /*!
       @brief  Test if one DateTime is greater (later) than or equal to another
@@ -245,7 +282,7 @@ public:
       @return True if the left DateTime is later than or equal to the right
         one, false otherwise
   */
-  bool operator>=(const DateTime &right) const { return !(*this < right); }
+  bool operator>=(const DateTime &right) const { return (!(*this < right)); }
   bool operator==(const DateTime &right) const;
 
   /*!
@@ -256,7 +293,7 @@ public:
       @param right DateTime object to compare
       @return True if the two objects are not equal, false if they are
   */
-  bool operator!=(const DateTime &right) const { return !(*this == right); }
+  bool operator!=(const DateTime &right) const { return (!(*this == right)); }
 
 protected:
   uint8_t yOff; ///< Year offset from 2000
@@ -311,8 +348,8 @@ public:
   */
   int32_t totalseconds() const { return _seconds; }
 
-  TimeSpan operator+(const TimeSpan &right) const;
-  TimeSpan operator-(const TimeSpan &right) const;
+  TimeSpan operator+(const TimeSpan &right);
+  TimeSpan operator-(const TimeSpan &right);
 
 protected:
   int32_t _seconds; ///< Actual TimeSpan value is stored as seconds
@@ -331,16 +368,49 @@ protected:
       @param val BCD value
       @return Binary value
   */
-  static uint8_t bcd2bin(uint8_t val) { return val - 6 * (val >> 4); }
+  static uint8_t bcd2bin(uint8_t val) { return (val - 6 * (val >> 4)); }
   /*!
       @brief  Convert a binary value to BCD format for the RTC registers
       @param val Binary value
       @return BCD value
   */
-  static uint8_t bin2bcd(uint8_t val) { return val + 6 * (val / 10); }
-  Adafruit_I2CDevice *i2c_dev = NULL; ///< Pointer to I2C bus interface
+  static uint8_t bin2bcd(uint8_t val) { return (val + 6 * (val / 10)); }
+  Adafruit_I2CDevice *i2c_dev = nullptr; ///< Pointer to I2C bus interface
   uint8_t read_register(uint8_t reg);
-  void write_register(uint8_t reg, uint8_t val);
+  bool write_register(uint8_t reg, uint8_t val);
+};
+
+
+/**************************************************************************/
+/*!
+    @brief  RTC based on the ST Micro STM32 HAL Library
+*/
+/**************************************************************************/
+class RTC_STM32 : RTC_I2C {
+public:
+	bool begin(void);
+
+	bool adjust(const DateTime &dt);
+	bool adjust(unsigned long seconds);
+	bool isrunning(void);
+	DateTime now();
+
+	// Use a battery-backed hardware RTC as a backup clock.
+	// Set any time the main clock is set
+	bool backup_rtc(RTC_Type rtc, I2C_HandleTypeDef * Handle, I2C_AddressTypeDef addr);
+	bool restore_backup(void);
+
+	// TODO: Look at what actual code needs to be for Alarm support
+	bool setAlarm1(const DateTime &dt, STM32Alarm1Mode alarm_mode);
+	bool setAlarm2(const DateTime &dt, STM32Alarm1Mode alarm_mode);
+	void disableAlarm(uint8_t alarm_num);
+	void clearAlarm(uint8_t alarm_num);
+	bool alarmFired(uint8_t alarm_num);
+
+	void use_dst(bool enable);
+	static void RTC_CalendarShow(uint8_t *showtime, uint8_t *showdate);
+	bool now(RTC_DateTypeDef *sdatestructureget, RTC_TimeTypeDef *stimestructureget);
+
 };
 
 /**************************************************************************/
@@ -350,7 +420,11 @@ protected:
 /**************************************************************************/
 class RTC_DS1307 : RTC_I2C {
 public:
+#ifndef USE_HAL_DRIVER
   bool begin(TwoWire *wireInstance = &Wire);
+#else
+  bool begin(I2C_HandleTypeDef * Handle);
+#endif
   void adjust(const DateTime &dt);
   uint8_t isrunning(void);
   DateTime now();
@@ -359,7 +433,7 @@ public:
   uint8_t readnvram(uint8_t address);
   void readnvram(uint8_t *buf, uint8_t size, uint8_t address);
   void writenvram(uint8_t address, uint8_t data);
-  void writenvram(uint8_t address, const uint8_t *buf, uint8_t size);
+  void writenvram(uint8_t address, uint8_t *buf, uint8_t size);
 };
 
 /**************************************************************************/
@@ -369,7 +443,11 @@ public:
 /**************************************************************************/
 class RTC_DS3231 : RTC_I2C {
 public:
+#ifndef USE_HAL_DRIVER
   bool begin(TwoWire *wireInstance = &Wire);
+#else
+  bool begin(I2C_HandleTypeDef * Handle);
+#endif
   void adjust(const DateTime &dt);
   bool lostPower(void);
   DateTime now();
@@ -377,10 +455,6 @@ public:
   void writeSqwPinMode(Ds3231SqwPinMode mode);
   bool setAlarm1(const DateTime &dt, Ds3231Alarm1Mode alarm_mode);
   bool setAlarm2(const DateTime &dt, Ds3231Alarm2Mode alarm_mode);
-  DateTime getAlarm1();
-  DateTime getAlarm2();
-  Ds3231Alarm1Mode getAlarm1Mode();
-  Ds3231Alarm2Mode getAlarm2Mode();
   void disableAlarm(uint8_t alarm_num);
   void clearAlarm(uint8_t alarm_num);
   bool alarmFired(uint8_t alarm_num);
@@ -395,7 +469,7 @@ public:
               from 0 (Sunday) to 6 (Saturday).
       @return the converted value
   */
-  static uint8_t dowToDS3231(uint8_t d) { return d == 0 ? 7 : d; }
+  static uint8_t dowToDS3231(uint8_t d) { return (d == 0 ? 7 : d); }
 };
 
 /**************************************************************************/
@@ -405,14 +479,18 @@ public:
 /**************************************************************************/
 class RTC_PCF8523 : RTC_I2C {
 public:
+#ifndef USE_HAL_DRIVER
   bool begin(TwoWire *wireInstance = &Wire);
-  void adjust(const DateTime &dt);
+#else
+  bool begin(I2C_HandleTypeDef * Handle);
+#endif
+  bool adjust(const DateTime &dt);
   bool lostPower(void);
   bool initialized(void);
   DateTime now();
   void start(void);
   void stop(void);
-  uint8_t isrunning();
+  bool isrunning();
   Pcf8523SqwPinMode readSqwPinMode();
   void writeSqwPinMode(Pcf8523SqwPinMode mode);
   void enableSecondTimer(void);
@@ -432,9 +510,13 @@ public:
 /**************************************************************************/
 class RTC_PCF8563 : RTC_I2C {
 public:
+#ifndef USE_HAL_DRIVER
   bool begin(TwoWire *wireInstance = &Wire);
+#else
+  bool begin(I2C_HandleTypeDef * Handle);
+#endif
   bool lostPower(void);
-  void adjust(const DateTime &dt);
+  bool adjust(const DateTime &dt);
   DateTime now();
   void start(void);
   void stop(void);
@@ -476,6 +558,10 @@ protected:
       second** of Unix time preceding the last call to now().
   */
   uint32_t lastMillis;
+
+#ifdef USE_HAL_DRIVER
+  uint32_t millis(void);
+#endif
 };
 
 /**************************************************************************/
@@ -514,6 +600,10 @@ protected:
       `micros()` value corresponding to `lastUnix`.
   */
   uint32_t lastMicros;
+
+#ifdef USE_HAL_DRIVER
+  uint32_t micros(void);
+#endif
 };
 
 #endif // _RTCLIB_H_
