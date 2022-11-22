@@ -1,5 +1,13 @@
 #include "RTClib.h"
 
+#ifdef USE_HAL_DRIVER
+ uint32_t RTC_Micros::micros(void)
+{
+	// TODO: Determine micros
+	return (0);
+}
+#endif
+
 /**************************************************************************/
 /*!
     @brief  Set the current date/time of the RTC_Micros clock.
@@ -29,5 +37,5 @@ DateTime RTC_Micros::now() {
   uint32_t elapsedSeconds = (micros() - lastMicros) / microsPerSecond;
   lastMicros += elapsedSeconds * microsPerSecond;
   lastUnix += elapsedSeconds;
-  return lastUnix;
+  return (lastUnix);
 }
