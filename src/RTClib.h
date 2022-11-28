@@ -61,11 +61,13 @@ enum STM32Alarm1Mode {
                                    minutes and seconds match */
 };
 
+
 enum RTC_Type {
 	DS1307,
 	DS3231,
 	PCF8523,
 	PCF8563,
+	STM32
 };
 
 /** DS1307 SQW pin mode settings */
@@ -395,11 +397,6 @@ public:
 	bool isrunning(void);
 	DateTime now();
 
-	// Use a battery-backed hardware RTC as a backup clock.
-	// Set any time the main clock is set
-	bool backup_rtc(RTC_Type rtc, I2C_HandleTypeDef * Handle, I2C_AddressTypeDef addr);
-	bool restore_backup(void);
-
 	// TODO: Look at what actual code needs to be for Alarm support
 	bool setAlarm1(const DateTime &dt, STM32Alarm1Mode alarm_mode);
 	bool setAlarm2(const DateTime &dt, STM32Alarm1Mode alarm_mode);
@@ -408,8 +405,15 @@ public:
 	bool alarmFired(uint8_t alarm_num);
 
 	void use_dst(bool enable);
-	static void RTC_CalendarShow(uint8_t *showtime, uint8_t *showdate);
+	void CalendarConfig(void);
+	void CalendarShow(uint8_t *showtime, uint8_t *showdate);
 	bool now(RTC_DateTypeDef *sdatestructureget, RTC_TimeTypeDef *stimestructureget);
+
+private:
+	// Use a battery-backed hardware RTC as a backup clock.
+	// Set any time the main clock is set
+	bool backup_rtc(RTC_Type rtc, I2C_HandleTypeDef * Handle, I2C_AddressTypeDef addr);
+	bool restore_backup(void);
 
 };
 
