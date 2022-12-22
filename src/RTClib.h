@@ -44,9 +44,40 @@
 class TimeSpan;
 
 /** Constants */
-#define SECONDS_PER_DAY 86400L ///< 60 * 60 * 24
+#define SECONDS_PER_DAY (86400L) ///< 60 * 60 * 24
 #define SECONDS_FROM_1970_TO_2000                                              \
   946684800 /* /< Unixtime for 2000-01-01 00:00:00, useful for initialization */
+
+#define SECS_HOUR 3600
+
+#define HOURS12 12
+#define HOURS24 24
+#define HOURS_DAY_UL (24UL)
+#define MINS_HR 60
+#define SECS_MIN 60
+#define LEAPYEARS 4
+#define DAYS_WEEK 7
+
+#define mJAN 1
+#define mFEB 2
+#define mMAR 3
+#define mAPR 4
+#define mMAY 5
+#define mJUN 6
+#define mJUL 7
+#define mAUG 8
+#define mSEP 9
+#define mOCT 10
+#define mNOV 11
+#define mDEC 12
+
+#ifndef TEN
+#define TEN 10
+#endif
+
+#define START_YEAR (2000U)
+#define DAYS_YEAR (365U)
+
 
 /** Alarm modes for STM32 alarm 1 */
 enum STM32Alarm1Mode {
@@ -358,7 +389,7 @@ public:
 	 @return int8_t minutes
 	 */
 	int8_t minutes() const {
-		return _seconds / 60 % 60;
+		return _seconds / SECS_MIN % MINS_HR;
 	}
 	/*!
 	 @brief  Number of seconds in the TimeSpan
@@ -367,7 +398,7 @@ public:
 	 @return int8_t seconds
 	 */
 	int8_t seconds() const {
-		return _seconds % 60;
+		return _seconds % SECS_MIN;
 	}
 	/*!
 	 @brief  Total number of seconds in the TimeSpan, e.g. 358027
@@ -406,7 +437,7 @@ protected:
 	 @return BCD value
 	 */
 	static uint8_t bin2bcd(uint8_t val) {
-		return (val + 6 * (val / 10));
+		return (val + 6 * (val / TEN));
 	}
 	Adafruit_I2CDevice *i2c_dev = nullptr; ///< Pointer to I2C bus interface
 	uint8_t read_register(uint8_t reg);

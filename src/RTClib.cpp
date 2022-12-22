@@ -130,15 +130,17 @@ const uint8_t daysInMonth[] PROGMEM = {31, 28, 31, 30, 31, 30,
     @return Number of days
 */
 /**************************************************************************/
+
+
 static uint16_t date2days(uint16_t y, uint8_t m, uint8_t d) {
-  if (y >= 2000U)
-    y -= 2000U;
+  if (y >= START_YEAR)
+    y -= START_YEAR;
   uint16_t days = d;
   for (uint8_t i = 1; i < m; ++i)
     days += pgm_read_byte(daysInMonth + i - 1);
   if (m > 2 && y % 4 == 0)
     ++days;
-  return (days + 365 * y + (y + 3) / 4 - 1);
+  return (days + DAYS_YEAR * y + (y + 3) / 4 - 1);
 }
 
 /**************************************************************************/
@@ -153,7 +155,7 @@ static uint16_t date2days(uint16_t y, uint8_t m, uint8_t d) {
 */
 /**************************************************************************/
 static uint32_t time2ulong(uint16_t days, uint8_t h, uint8_t m, uint8_t s) {
-  return (((days * 24UL + h) * 60 + m) * 60 + s);
+  return (((days * HOURS_DAY_UL + h) * MINS_HR + m) * SECS_MIN + s);
 }
 
 /**************************************************************************/
@@ -187,22 +189,22 @@ static uint32_t time2ulong(uint16_t days, uint8_t h, uint8_t m, uint8_t s) {
 DateTime::DateTime(uint32_t t) {
   t -= SECONDS_FROM_1970_TO_2000; // bring to 2000 timestamp from 1970
 
-  ss = t % 60;
-  t /= 60;
-  mm = t % 60;
-  t /= 60;
-  hh = t % 24;
-  uint16_t days = t / 24;
+  ss = t % SECS_MIN;
+  t /= SECS_MIN;
+  mm = t % MINS_HR;
+  t /= MINS_HR;
+  hh = t % HOURS24;
+  uint16_t days = t / HOURS24;
   uint8_t leap;
   for (yOff = 0;; ++yOff) {
-    leap = yOff % 4 == 0;
-    if (days < 365U + leap)
+    leap = yOff % LEAPYEARS == 0;
+    if (days < DAYS_YEAR + leap)
       break;
-    days -= 365 + leap;
+    days -= DAYS_YEAR + leap;
   }
-  for (m = 1; m < 12; ++m) {
+  for (m = 1; m < HOURS12; ++m) {
     uint8_t daysPerMonth = pgm_read_byte(daysInMonth + m - 1);
-    if (leap && m == 2)
+    if (leap && m == mFEB)
       ++daysPerMonth;
     if (days < daysPerMonth)
       break;
@@ -227,8 +229,8 @@ DateTime::DateTime(uint32_t t) {
 /**************************************************************************/
 DateTime::DateTime(uint16_t year, uint8_t month, uint8_t day, uint8_t hour,
                    uint8_t min, uint8_t sec) {
-  if (year >= 2000U)
-    year -= 2000U;
+  if (year >= START_YEAR)
+    year -= START_YEAR;
   yOff = year;
   m = month;
   d = day;
@@ -258,7 +260,7 @@ static uint8_t conv2d(const char *p) {
   uint8_t v = 0;
   if ('0' <= *p && *p <= '9')
     v = *p - '0';
-  return (10 * v + *++p - '0');
+  return (TEN * v + *++p - '0');
 }
 
 /**************************************************************************/
@@ -285,28 +287,28 @@ DateTime::DateTime(const char *date, const char *time) {
   // Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec
   switch (date[0]) {
   case 'J':
-    m = (date[1] == 'a') ? 1 : ((date[2] == 'n') ? 6 : 7);
+    m = (date[1] == 'a') ? mJAN : ((date[2] == 'n') ? mJUN : mJUL);
     break;
   case 'F':
-    m = 2;
+    m = mFEB;
     break;
   case 'A':
-    m = date[2] == 'r' ? 4 : 8;
+    m = date[2] == 'r' ? mAPR : mAUG;
     break;
   case 'M':
-    m = date[2] == 'r' ? 3 : 5;
+    m = date[2] == 'r' ? mMAR : mMAY;
     break;
   case 'S':
-    m = 9;
+    m = mSEP;
     break;
   case 'O':
-    m = 10;
+    m = mOCT;
     break;
   case 'N':
-    m = 11;
+    m = mNOV;
     break;
   case 'D':
-    m = 12;
+    m = mDEC;
     break;
   default:
 	  break;
@@ -340,28 +342,27 @@ DateTime::DateTime(const __FlashStringHelper *date,
   // Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec
   switch (buff[0]) {
   case 'J':
-    m = (buff[1] == 'a') ? 1 : ((buff[2] == 'n') ? 6 : 7);
+    m = (buff[1] == 'a') ? mJAN : ((buff[2] == 'n') ? mJUN : mJUL);
     break;
   case 'F':
-    m = 2;
+    m = mFEB;
     break;
   case 'A':
-    m = buff[2] == 'r' ? 4 : 8;
+    m = buff[2] == 'r' ? mAPR : mAUG;
     break;
   case 'M':
-    m = buff[2] == 'r' ? 3 : 5;
-    break;
+    m = buff[2] == 'r' ? mMAR : mMAY;
   case 'S':
-    m = 9;
+    m = mSEP;
     break;
   case 'O':
-    m = 10;
+    m = mOCT;
     break;
   case 'N':
-    m = 11;
+    m = mNOV;
     break;
   case 'D':
-    m = 12;
+    m = mDEC;
     break;
   default:
 	  break;
@@ -479,36 +480,36 @@ char *DateTime::toString(char *buffer) {
   if (apTag) {     // 12 Hour Mode
     if (hh == 0) { // midnight
       isPM = false;
-      hourReformatted = 12;
-    } else if (hh == 12) { // noon
+      hourReformatted = HOURS12;
+    } else if (hh == HOURS12) { // noon
       isPM = true;
-      hourReformatted = 12;
-    } else if (hh < 12) { // morning
+      hourReformatted = HOURS12;
+    } else if (hh < HOURS12) { // morning
       isPM = false;
       hourReformatted = hh;
     } else { // 1 o'clock or after
       isPM = true;
-      hourReformatted = hh - 12;
+      hourReformatted = hh - HOURS12;
     }
   }
 
   for (size_t i = 0; i < strlen(buffer) - 1; i++) {
     if (buffer[i] == 'h' && buffer[i + 1] == 'h') {
       if (!apTag) { // 24 Hour Mode
-        buffer[i] = '0' + hh / 10;
-        buffer[i + 1] = '0' + hh % 10;
+        buffer[i] = '0' + hh / TEN;
+        buffer[i + 1] = '0' + hh % TEN;
       } else { // 12 Hour Mode
-        buffer[i] = '0' + hourReformatted / 10;
-        buffer[i + 1] = '0' + hourReformatted % 10;
+        buffer[i] = '0' + hourReformatted / TEN;
+        buffer[i + 1] = '0' + hourReformatted % TEN;
       }
     }
     if (buffer[i] == 'm' && buffer[i + 1] == 'm') {
-      buffer[i] = '0' + mm / 10;
-      buffer[i + 1] = '0' + mm % 10;
+      buffer[i] = '0' + mm / TEN;
+      buffer[i + 1] = '0' + mm % TEN;
     }
     if (buffer[i] == 's' && buffer[i + 1] == 's') {
-      buffer[i] = '0' + ss / 10;
-      buffer[i + 1] = '0' + ss % 10;
+      buffer[i] = '0' + ss / TEN;
+      buffer[i + 1] = '0' + ss % TEN;
     }
     if (buffer[i] == 'D' && buffer[i + 1] == 'D' && buffer[i + 2] == 'D') {
       static PROGMEM const char day_names[] = "SunMonTueWedThuFriSat";
@@ -517,8 +518,8 @@ char *DateTime::toString(char *buffer) {
       buffer[i + 1] = pgm_read_byte(p + 1);
       buffer[i + 2] = pgm_read_byte(p + 2);
     } else if (buffer[i] == 'D' && buffer[i + 1] == 'D') {
-      buffer[i] = '0' + d / 10;
-      buffer[i + 1] = '0' + d % 10;
+      buffer[i] = '0' + d / TEN;
+      buffer[i + 1] = '0' + d % TEN;
     }
     if (buffer[i] == 'M' && buffer[i + 1] == 'M' && buffer[i + 2] == 'M') {
       static PROGMEM const char month_names[] =
@@ -528,18 +529,18 @@ char *DateTime::toString(char *buffer) {
       buffer[i + 1] = pgm_read_byte(p + 1);
       buffer[i + 2] = pgm_read_byte(p + 2);
     } else if (buffer[i] == 'M' && buffer[i + 1] == 'M') {
-      buffer[i] = '0' + m / 10;
-      buffer[i + 1] = '0' + m % 10;
+      buffer[i] = '0' + m / TEN;
+      buffer[i + 1] = '0' + m % TEN;
     }
     if (buffer[i] == 'Y' && buffer[i + 1] == 'Y' && buffer[i + 2] == 'Y' &&
         buffer[i + 3] == 'Y') {
       buffer[i] = '2';
       buffer[i + 1] = '0';
-      buffer[i + 2] = '0' + (yOff / 10) % 10;
-      buffer[i + 3] = '0' + yOff % 10;
+      buffer[i + 2] = '0' + (yOff / TEN) % TEN;
+      buffer[i + 3] = '0' + yOff % TEN;
     } else if (buffer[i] == 'Y' && buffer[i + 1] == 'Y') {
-      buffer[i] = '0' + (yOff / 10) % 10;
-      buffer[i + 1] = '0' + yOff % 10;
+      buffer[i] = '0' + (yOff / TEN) % TEN;
+      buffer[i + 1] = '0' + yOff % TEN;
     }
     if (buffer[i] == 'A' && buffer[i + 1] == 'P') {
       if (isPM) {
@@ -569,10 +570,10 @@ char *DateTime::toString(char *buffer) {
 */
 /**************************************************************************/
 uint8_t DateTime::twelveHour() const {
-  if (hh == 0 || hh == 12) { // midnight or noon
-    return (12);
-  } else if (hh > 12) { // 1 o'clock or later
-    return (hh - 12);
+  if (hh == 0 || hh == HOURS12) { // midnight or noon
+    return (HOURS12);
+  } else if (hh > HOURS12) { // 1 o'clock or later
+    return (hh - HOURS12);
   } else { // morning
     return (hh);
   }
@@ -586,7 +587,7 @@ uint8_t DateTime::twelveHour() const {
 /**************************************************************************/
 uint8_t DateTime::dayOfTheWeek() const {
   uint16_t day = date2days(yOff, m, d);
-  return ((day + 6) % 7); // Jan 1, 2000 is a Saturday, i.e. returns 6
+  return ((day + DAYS_WEEK-1) % DAYS_WEEK); // Jan 1, 2000 is a Saturday, i.e. returns 6
 }
 
 /**************************************************************************/
@@ -679,8 +680,8 @@ TimeSpan DateTime::operator-(const DateTime &right) {
 */
 /**************************************************************************/
 bool DateTime::operator<(const DateTime &right) const {
-  return (yOff + 2000U < right.year() ||
-          (yOff + 2000U == right.year() &&
+  return (yOff + START_YEAR < right.year() ||
+          (yOff + START_YEAR == right.year() &&
            (m < right.month() ||
             (m == right.month() &&
              (d < right.day() ||
@@ -703,7 +704,7 @@ bool DateTime::operator<(const DateTime &right) const {
 */
 /**************************************************************************/
 bool DateTime::operator==(const DateTime &right) const {
-  return (right.year() == yOff + 2000U && right.month() == m &&
+  return (right.year() == yOff + START_YEAR && right.month() == m &&
           right.day() == d && right.hour() == hh && right.minute() == mm &&
           right.second() == ss);
 }
@@ -734,11 +735,11 @@ String DateTime::timestamp(timestampOpt opt) {
     break;
   case TIMESTAMP_DATE:
     // Only date
-    sprintf(buffer, "%u-%02d-%02d", 2000U + yOff, m, d);
+    sprintf(buffer, "%u-%02d-%02d", START_YEAR + yOff, m, d);
     break;
   default:
     // Full
-    sprintf(buffer, "%u-%02d-%02dT%02d:%02d:%02d", 2000U + yOff, m, d, hh, mm,
+    sprintf(buffer, "%u-%02d-%02dT%02d:%02d:%02d", START_YEAR + yOff, m, d, hh, mm,
             ss);
   }
   return (String(buffer));
@@ -764,8 +765,8 @@ TimeSpan::TimeSpan(int32_t seconds) : _seconds(seconds) {}
 */
 /**************************************************************************/
 TimeSpan::TimeSpan(int16_t days, int8_t hours, int8_t minutes, int8_t seconds)
-    : _seconds((int32_t)days * 86400L + (int32_t)hours * 3600 +
-               (int32_t)minutes * 60 + seconds) {}
+    : _seconds((int32_t)days * SECONDS_PER_DAY + (int32_t)hours * SECS_HOUR +
+               (int32_t)minutes * SECS_MIN + seconds) {}
 
 /**************************************************************************/
 /*!
