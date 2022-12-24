@@ -46,17 +46,17 @@ class TimeSpan;
 /** Constants */
 #define SECONDS_PER_DAY (86400L) ///< 60 * 60 * 24
 #define SECONDS_FROM_1970_TO_2000                                              \
-  946684800 /* /< Unixtime for 2000-01-01 00:00:00, useful for initialization */
+  (946684800UL) /* /< Unixtime for 2000-01-01 00:00:00, useful for initialization */
 
-#define SECS_HOUR 3600
+#define SECS_HOUR (3600U)
 
-#define HOURS12 12
-#define HOURS24 24
+#define HOURS12 (12U)
+#define HOURS24 (24U)
 #define HOURS_DAY_UL (24UL)
-#define MINS_HR 60
-#define SECS_MIN 60
-#define LEAPYEARS 4
-#define DAYS_WEEK 7
+#define MINS_HR (60U)
+#define SECS_MIN (60U)
+#define LEAPYEARS (4U)
+#define DAYS_WEEK (7U)
 
 #define mJAN 1
 #define mFEB 2
@@ -84,12 +84,9 @@ enum STM32Alarm1Mode {
 	STM32_PerSecond = 0x0F, /**< Alarm once per second */
 	STM32_Second = 0x0E, /**< Alarm when seconds match */
 	STM32_Minute = 0x0C, /**< Alarm when minutes and seconds match */
-	STM32_Hour = 0x08, /**< Alarm when hours, minutes
-	 and seconds match */
-	STM32_Date = 0x00, /**< Alarm when date (day of month), hours,
-	 minutes and seconds match */
-	STM32_Day = 0x10 /**< Alarm when day (day of week), hours,
-	 minutes and seconds match */
+	STM32_Hour = 0x08, /**< Alarm when hours, minutes and seconds match */
+	STM32_Date = 0x00, /**< Alarm when date (day of month), hours,	 minutes and seconds match */
+	STM32_Day = 0x10 /**< Alarm when day (day of week), hours, minutes and seconds match */
 };
 
 enum RTC_Type {
@@ -120,23 +117,17 @@ enum Ds3231Alarm1Mode {
 	DS3231_A1_PerSecond = 0x0F, /**< Alarm once per second */
 	DS3231_A1_Second = 0x0E, /**< Alarm when seconds match */
 	DS3231_A1_Minute = 0x0C, /**< Alarm when minutes and seconds match */
-	DS3231_A1_Hour = 0x08, /**< Alarm when hours, minutes
-	 and seconds match */
-	DS3231_A1_Date = 0x00, /**< Alarm when date (day of month), hours,
-	 minutes and seconds match */
-	DS3231_A1_Day = 0x10 /**< Alarm when day (day of week), hours,
-	 minutes and seconds match */
+	DS3231_A1_Hour = 0x08, /**< Alarm when hours, minutes	 and seconds match */
+	DS3231_A1_Date = 0x00, /**< Alarm when date (day of month), hours,	 minutes and seconds match */
+	DS3231_A1_Day = 0x10 /**< Alarm when day (day of week), hours, minutes and seconds match */
 };
 /** DS3231 Alarm modes for alarm 2 */
 enum Ds3231Alarm2Mode {
-	DS3231_A2_PerMinute = 0x7, /**< Alarm once per minute
-	 (whenever seconds are 0) */
+	DS3231_A2_PerMinute = 0x7, /**< Alarm once per minute (whenever seconds are 0) */
 	DS3231_A2_Minute = 0x6, /**< Alarm when minutes match */
 	DS3231_A2_Hour = 0x4, /**< Alarm when hours and minutes match */
-	DS3231_A2_Date = 0x0, /**< Alarm when date (day of month), hours
-	 and minutes match */
-	DS3231_A2_Day = 0x8 /**< Alarm when day (day of week), hours
-	 and minutes match */
+	DS3231_A2_Date = 0x0, /**< Alarm when date (day of month), hours and minutes match */
+	DS3231_A2_Day = 0x8 /**< Alarm when day (day of week), hours and minutes match */
 };
 /** PCF8523 INT/SQW pin mode settings */
 enum Pcf8523SqwPinMode {
@@ -152,10 +143,8 @@ enum Pcf8523SqwPinMode {
 
 /** PCF8523 Timer Source Clock Frequencies for Timers A and B */
 enum PCF8523TimerClockFreq {
-	PCF8523_Frequency4kHz = 0, /**< 1/4096th second = 244 microseconds,
-	 max 62.256 milliseconds */
-	PCF8523_Frequency64Hz = 1, /**< 1/64th second = 15.625 milliseconds,
-	 max 3.984375 seconds */
+	PCF8523_Frequency4kHz = 0, /**< 1/4096th second = 244 microseconds, max 62.256 milliseconds */
+	PCF8523_Frequency64Hz = 1, /**< 1/64th second = 15.625 milliseconds, max 3.984375 seconds */
 	PCF8523_FrequencySecond = 2, /**< 1 second, max 255 seconds = 4.25 minutes */
 	PCF8523_FrequencyMinute = 3, /**< 1 minute, max 255 minutes = 4.25 hours */
 	PCF8523_FrequencyHour = 4, /**< 1 hour, max 255 hours = 10.625 days */
