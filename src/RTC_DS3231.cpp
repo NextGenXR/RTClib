@@ -50,6 +50,11 @@ bool RTC_DS3231::lostPower(void) {
   return (read_register(DS3231_STATUSREG) >> 7);
 }
 
+bool RTC_DS3231::isRunning()
+{
+	return lostPower();
+}
+
 /**************************************************************************/
 /*!
     @brief  Set the date and flip the Oscillator Stop Flag

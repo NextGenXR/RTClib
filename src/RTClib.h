@@ -508,6 +508,7 @@ public:
 #endif
 	void adjust(const DateTime &dt);
 	bool lostPower(void);
+	bool isRunning(void);
 	DateTime now();
 	Ds3231SqwPinMode readSqwPinMode();
 	void writeSqwPinMode(Ds3231SqwPinMode mode);
